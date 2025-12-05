@@ -1,6 +1,7 @@
 #pragma once
 
 // Use C++ STL
+#include <algorithm>
 #include <concepts>
 #include <iostream>
 #include <memory>
@@ -92,6 +93,38 @@ private:
     Node* minimum_;
     Node* maximum_;
 
+    // Cache available memory in blocks of 32 (larger when requested by user)
+
+    struct MemoryBlock {
+        Node* location;
+        std::size_t used;
+        std::size_t size;
+
+        bool operator<(const MemoryBlock& other) const {
+            return location < other.location;
+        }
+    };
+
+    static constexpr std::size_t kDefaultBlockSize = 32;
+    static constexpr std::size_t kMaximumEmptyBlocks = 4;
+
+    /// @brief Memory that the tree has that has already been allocated that is not in use.
+    /// This is so that a memory allocation is not needed every time an element is inserted
+    /// This vector maintains two important invarients
+    /// 1: It is sorted by the memory address of the first element
+    /// 2: All memory that is being used comes before memory that is not begin used
+    /// Keeping it sorted by address means that adding a new block will be O(log(n)) rather than O(1), but deleting a node goes from O(n) to O(log(n))
+    /// All nodes will be allocated through the helper functions for memory EXCEPT for nil, since it wouldn't work.
+    std::vector<MemoryBlock> memory_;
+
+    /// @brief The index of the memory block that the next 
+    /// 
+    /// 
+    std::size_t active_block_;
+
+    
+
+
 public:
 
     // Define types for others to use (STL style)
@@ -111,7 +144,7 @@ public:
 
 
     /// @brief Constructs an empty Red-Black Tree
-    RedBlackTree() : size_(0), comparator_(), equal_(), allocator_(), available_(), n_available_() {
+    RedBlackTree() : size_(0), comparator_(), equal_(), allocator_(), memory_(), active_block_(0) {
         // Cannot be allocated in the constructor because of the order of object construction
         nil_ = allocator_.allocate(1);
         nil_->color = kBlack;
@@ -132,9 +165,11 @@ public:
                                               equal_(other.equal_),
                                               allocator_(other.allocator_),
                                               minimum_(nullptr),
-                                              maximum_(nullptr) {
-        root_ = deep_copy(other.root_, allocator_);
-        nil_ = root_->parent;
+                                              maximum_(nullptr),
+                                              memory_(),
+                                              active_block_(0) {
+
+        copy_from(other);
         minimum_ = minimum(root_, nil_);
         maximum_ = maximum(root_, nil_);
     }
@@ -149,7 +184,9 @@ public:
                                                   equal_(std::move(other.equal_)),
                                                   allocator_(std::move(other.allocator_)),
                                                   minimum_(other.minimum_),
-                                                  maximum_(other.maximum_) {
+                                                  maximum_(other.maximum_),
+                                                  memory_(std::move(other.memory_)),
+                                                  active_block_(other.active_block_) {
 
         // Leave other in a valid but unspecified state
         other.nil_ = nullptr;
@@ -162,17 +199,14 @@ public:
     RedBlackTree& operator=(const RedBlackTree& other) {
         // Clean up existing tree
         // Checks are needed since the trees may have been moved from
-        if (root_ && root_ != nil_) {
-            deallocate(root_, allocator_, nil_);
-        }
+        call_all_destructors();
+        deallocate_all_memory();
         if (nil_) {
-            std::destroy_at(nil_);
             allocator_.deallocate(nil_, 1);
         }
 
         allocator_ = other.allocator_;
-        root_ = deep_copy(other.root_, allocator_);
-        nil_ = root_->parent;
+        copy_from(other);
         size_ = other.size_;
         comparator_ = other.comparator_;
         equal_ = other.equal_;
@@ -188,13 +222,10 @@ public:
     RedBlackTree& operator=(RedBlackTree&& other) noexcept {
         // Clean up existing 
         // Checks are needed since the trees may have been moved from
-        // Do not add to available since different allocators are used
-        if (root_ && root_ != nil_) {
-            deallocate(root_, allocator_, nil_);
-        }
+        call_all_destructors();
+        deallocate_all_memory();
 
         if (nil_) {
-            std::destroy_at(nil_);
             allocator_.deallocate(nil_, 1);
         }
 
@@ -208,10 +239,106 @@ public:
         allocator_ = std::move(other.allocator_);
         minimum_ = other.minimum_;
         maximum_ = other.maximum_;
+        memory_ = std::move(other.memory_);
+        active_block_ = other.active_block_;
 
 
         return *this;
     }
+
+private:
+
+    void copy_from(const RedBlackTree& other) {
+        // First allocate memory
+        // This will be allocated in 4 blocks rather than blocks of size `kDefaultBlockSize`
+        
+        // Count the number of nodes in the other tree
+        std::size_t n_nodes = 0;
+        for (std::size_t i = 0; i < std::min(other.active_block_, other.memory_.size()); ++i) {
+            n_nodes += other.memory_[i].used;
+        }
+        std::size_t block_size = n_nodes;
+        // Round block_size up to the nearest power of two
+        --block_size;
+        block_size |= block_size >> 1;
+        block_size |= block_size >> 2;
+        block_size |= block_size >> 4;
+        block_size |= block_size >> 8;
+        block_size |= block_size >> 16;
+        block_size |= block_size >> 32;
+        ++block_size;
+        // Divide by four
+        block_size >>= 2;
+
+        block_size = std::max(block_size, kDefaultBlockSize);
+        for (int i = 0; i < 4; ++i) {
+            add_block(block_size);
+        }
+
+        // Now, copy over the nodes
+        deep_copy(other);
+    }
+
+
+	/// @brief Creates a deep copy of the tree rooted at `root`, with a new nil node too.
+	void deep_copy(const RedBlackTree& other) {
+		// Make sure that a new nil is used (could go wrong with multithreading when nil's parent is changed in deletion_fixup and when one object goes out of scope and nil_ is deallocated)
+        nil_ = allocator_.allocate(1);
+		nil_->parent = nil_;
+		nil_->left = nil_;
+		nil_->right = nil_;
+		nil_->color = kBlack;
+
+		if (other.root_ == other.nil_) {
+			// Root is nil
+            root_ = nil_;
+            return;
+		}
+
+		// Set up new root
+        root_ = get_next_uninitialized();
+		new (root_) Node(nullptr, nullptr, nil_, other.root_->val, kBlack);
+
+
+		struct CopyStep {
+			Node* old_node;
+			Node* new_node;
+		};
+
+
+		std::stack<CopyStep> dfs;
+		dfs.push({other.root_, root_});
+
+		while (!dfs.empty()) {
+			CopyStep current = dfs.top();
+			dfs.pop();
+
+			// Copy the children and add to the dfs if necessary
+
+			if (current.old_node->left == other.nil_) {
+				// If the old node's left child was nil
+				current.new_node->left = nil_;
+			} else {
+                current.new_node->left = get_next_uninitialized();
+				new (current.new_node->left) Node(nullptr, nullptr, current.new_node, current.old_node->left->val, current.old_node->left->color);
+				dfs.push({current.old_node->left, current.new_node->left});
+			}
+
+			if (current.old_node->right == other.nil_) {
+				// The old node's right child was nil
+				current.new_node->right = nil_;
+			} else {
+                current.new_node->right = get_next_uninitialized();
+				new (current.new_node->right) Node(nullptr, nullptr, current.new_node, current.old_node->right->val, current.old_node->right->color);
+				dfs.push({current.old_node->right, current.new_node->right});
+			}
+		}
+
+        // Done
+	}
+
+
+public:
 
     // Constructor that inserts a list of elements
     template <typename... Args>
@@ -234,7 +361,7 @@ public:
 
         // Always allocate memory regardless of if the insertion fails
         // This is necessary so that in equal_ and comparator_ the object does not get constructed each time
-        Node* new_node = allocator_.allocate(1);
+        Node* new_node = get_next_uninitialized();
         new (new_node) Node(nil_, nil_, nil_, std::forward<U>(element), kRed);
 
         if (root_ == nil_) {
@@ -254,8 +381,7 @@ public:
             // Do not add duplicates if specified
             if constexpr (!duplicates) {
                 if (equal_(current->val, new_node->val)) {
-                    std::destroy_at(new_node);
-                    allocator_.deallocate(new_node, 1);
+                    free_node(new_node);
                     return false;
                 }
             }
@@ -495,16 +621,13 @@ public:
             replacement = replacement_right;
         }
 
-        // Call destructor
-        std::destroy_at(current);
-
-        // Deallocate
-        allocator_.deallocate(current, 1);
 
         // Fixup if necessary
         if (original_color == kBlack) {
             delete_fixup(replacement);
         }
+
+        free_node(current);
 
         --size_;
         // Reset nil's parent in case it was temporarily updated
@@ -656,33 +779,29 @@ public:
     /// @brief Destroys each element in `this` and deallocates the tree
     ~RedBlackTree() noexcept {
         // Deallocate each node
-        destroy_cached_memory();
+        call_all_destructors();
+        deallocate_all_memory();
         
         // This is so that if this object is moved from it will not break
         // Using the allocator to deallocate nullptr is undefined
         if (root_ == nullptr) return;
-
-        // Do not deallocate nil if the root is nil, the other statement will do it
-        // Absence of the if statement makes nil_ get deallocated twice
-        bool root_nil = root_ == nil_;
-        deallocate(root_, allocator_, nil_);
-        if (!root_nil) {
-            // Do not std::destroy_at(nil_) because nil was never actually constructed
-            allocator_.deallocate(nil_, 1);
-        }
+        
+        // Do not std::destroy_at(nil_) because nil was never actually constructed
+        allocator_.deallocate(nil_, 1);
     }
 
 
     /// @brief Clears `this`. 
     void clear() {
+        // Set root to nil and destroy all memory
         if (root_ == nil_) return;
-        deallocate(root_, allocator_, nil_);
+        call_all_destructors();
+        for (MemoryBlock& mb : memory_) {
+            mb.used = 0;
+        }
+
         root_ = nil_; 
         size_ = 0;
-        // Reset in case its needed (probably not but should have negligable performance)
-        allocator_ = Allocator();
-        equal_ = Equal();
-        comparator_ = Comparator();
         maximum_ = nil_;
         minimum_ = nil_;
     }
@@ -765,7 +884,7 @@ public:
             return current_->val;
         }
         
-        iterator& operator++() {
+        const_iterator& operator++() {
             if (current_ == nil_) return *this; // already at end
 
             if (current_->right != nil_) {
@@ -815,6 +934,120 @@ public:
     const_iterator end() const { return const_iterator(nil_, nil_); }
 
 
+    // -------------------------- Memory --------------------------
+
+private:
+
+    /// @brief Gets an uninitalized node.
+    /// @return Pointer to the uninitalized node.
+    /// @note All nodes gotten from this function will not be released until free_node is called or the end of `this`'s lifetime.
+    [[nodiscard("Memory marked as used should be kept track of")]] Node* get_next_uninitialized() {
+
+        if (active_block_ == memory_.size()) {
+            add_block();
+        }
+
+        MemoryBlock& mb = memory_[active_block_];
+        Node* address = mb.location + mb.used;
+        ++mb.used;
+        if (mb.used == mb.size) {
+            ++active_block_;
+        }
+
+        return address;
+    }
+
+    /// @brief Marks the given node as freed and calls the node's destructor.
+    /// @param node Node to go.
+    void free_node(Node* node) {
+        // Swap with one from the end
+        std::size_t block_to_empty = active_block_ - (active_block_ >= memory_.size() || memory_[active_block_].used == 0);
+        std::destroy_at(node);
+        transfer_node(memory_[block_to_empty].location + memory_[block_to_empty].used - 1, node);
+        --(memory_[block_to_empty].used);
+        active_block_ = block_to_empty;
+    }
+
+    /// @brief Adds an unallocated memory block of `size` to `this`.
+    /// @param size Number of elements to add space for. 
+    void add_block(std::size_t size = kDefaultBlockSize) {
+        // When a new block is added, the memory addresses must remain sorted by address
+        Node* new_block = allocator_.allocate(size);
+        MemoryBlock block{new_block, 0, size};
+        typename std::vector<MemoryBlock>::iterator insert_location = std::lower_bound(memory_.begin(), memory_.end(), block);
+        MemoryBlock* just_inserted = &(*memory_.insert(insert_location, block));
+        if (memory_.size() == 1) return;
+        
+        // Fix by filling the memory block until it cannot be filled
+        MemoryBlock& into = *just_inserted;
+        // Note that the raw pointers are used here to bypass MSVC's iterator out of bounds check -- the while statement handles those cases perfectly find
+        MemoryBlock* block_to_copy_from = &(memory_[0]) + (active_block_ - (memory_[active_block_].used == 0));
+        while (into.size != into.used && block_to_copy_from > just_inserted) {
+            transfer_node(block_to_copy_from->location + block_to_copy_from->used - 1, into.location + into.used);
+            ++into.used;
+            --(block_to_copy_from->used);
+            if (block_to_copy_from->used == 0) {
+                --block_to_copy_from;
+            }
+        }
+        // Update active_block_
+        active_block_ = block_to_copy_from >= &(memory_[0]) ? block_to_copy_from - &(memory_[0]) + (block_to_copy_from->used == block_to_copy_from->size) : 0;
+        
+    }
+
+    /// @brief Transfers initialized node u into uninitialized node v.
+    /// @param u Old node (From).
+    /// @param v New node (To).
+    void transfer_node(Node* u, Node* v) {
+        if (u == v) return;
+        if (u->parent == nil_) {
+            root_ = v;
+        } else {
+            if (u->parent->left == u) {
+                u->parent->left = v;
+            } else {
+                u->parent->right = v;
+            }
+        }
+
+        // Make sure that minimum and maximum stay up to date
+        if (minimum_ == u) {
+            minimum_ = v;
+        }
+
+        if (maximum_ == u) {
+            maximum_ = v;
+        }
+
+        new (v) Node(u->left, u->right, u->parent, std::move(u->val), u->color);
+
+        if (v->left != nil_)
+			v->left->parent = v;
+        if (v->right != nil_)
+			v->right->parent = v;
+    }
+
+    /// @brief Calls the destructors of all allocated nodes.
+    void call_all_destructors() {
+        for (std::size_t i = 0; i < memory_.size(); ++i) {
+            for (std::size_t j = 0; j < memory_[i].used; ++j) {
+                std::destroy_at(memory_[i].location + j);
+            }
+        }
+    }
+
+    /// @brief Deallocates all memory.
+    /// @warning This does not call any destructors. See `call_all_destructors`.
+    void deallocate_all_memory() {
+        for (MemoryBlock& mb : memory_) {
+            allocator_.deallocate(mb.location, mb.size);
+        }
+    }
+
+public:
+    void reserve_additional(std::size_t n) {
+        add_block(n);
+    }
 
     // -------------------------- Debugging --------------------------
 
@@ -962,24 +1195,6 @@ private:
 // These are declared outside of the class since they do not need all template parameters and do not directly affect `this`
 
 
-/// @brief Destroys and deallocates all nodes subrooted at `root` including `root`.
-/// @tparam Node the type of node to be deallocated.
-/// @tparam Allocator the allocated type used to deallocate the nodes.
-/// @param root Root of the tree / subtree to be deallcoated.
-/// @param alloc Allocator object used to deallocate the nodes.
-template <typename Node, typename Allocator>
-static void deallocate(Node* root, Allocator& alloc, const Node* nil = nullptr) noexcept {
-    if (root->left != nil) {
-        deallocate(root->left, alloc, nil);
-    }
-    if (root->right != nil) {
-        deallocate(root->right, alloc, nil);
-    }
-
-    std::destroy_at(root);
-    alloc.deallocate(root, 1);
-}
-
 /// @brief Finds the node with the minimum value of the BST rooted at `root`.
 /// @tparam Node the type of node to find the minimum of.
 /// @param root the root of the tree to find the minimum of.
@@ -1007,70 +1222,6 @@ static std::size_t height(const Node* root, const Node* nil = nullptr) {
 }
 
 
-/// @brief Creates a deep copy of the tree rooted at `root`, with a new nil node too.
-/// @tparam Node the node type to make a copy of.
-/// @param root The root of the tree that a copy is made of. Parent must be the nil node
-/// @param alloc Allocator to allocate memory for the tree copy
-/// @return The root of the tree copy.
-template <typename Node, typename Allocator>
-requires ValidRedBlackTreeNode<Node, typename Node::data_type> && ValidAllocator<Allocator, Node>
-[[nodiscard("Dynamically allocated nodes must be deallocated")]]
-static Node* deep_copy(Node* root, Allocator& alloc) {
-    // Make sure that a new nil is used (could go wrong with multithreading when nil's parent is changed in deletion_fixup and when one object goes out of scope and nil_ is deallocated)
-    Node* new_nil = alloc.allocate(1);
-    new_nil->parent = new_nil;
-    new_nil->left = new_nil;
-    new_nil->right = new_nil;
-    new_nil->color = kBlack;
-
-    Node* new_root;
-    if (root == root->parent) {
-        // Root is nil
-        new_root = new_nil;
-        return new_root;
-    }
-
-    // Set up new root
-    new_root = alloc.allocate(1);
-    new (new_root) Node(nullptr, nullptr, new_nil, root->val, root->color);
-
-
-    struct CopyStep {
-        Node* old_node;
-        Node* new_node;
-    };
-
-
-    std::stack<CopyStep> dfs;
-    dfs.push({root, new_root});
-
-    while (!dfs.empty()) {
-        CopyStep current = dfs.top();
-        dfs.pop();
-
-        // Copy the children and add to the dfs if necessary
-
-        if (current.old_node->left == root->parent) {
-            // If the old node's left child was nil
-            current.new_node->left = new_nil;
-        } else {
-            current.new_node->left = alloc.allocate(1);
-            new (current.new_node->left) Node(nullptr, nullptr, current.new_node, current.old_node->left->val, current.old_node->left->color);
-            dfs.push({current.old_node->left, current.new_node->left});
-        }
-
-        if (current.old_node->right == root->parent) {
-            // The old node's right child was nil
-            current.new_node->right = new_nil;
-        } else {
-            current.new_node->right = alloc.allocate(1);
-            new (current.new_node->right) Node(nullptr, nullptr, current.new_node, current.old_node->right->val, current.old_node->right->color);
-            dfs.push({current.old_node->right, current.new_node->right});
-        }
-    }
-
-    return new_root;
-}
 
 } // namespace red_black_tree_utility
 

@@ -45,7 +45,7 @@ public:
         ++copies_;
     }
 
-    tracker_wrapper(tracker_wrapper&& other) : val_(other.val_) {
+    tracker_wrapper(tracker_wrapper&& other) : val_(std::move(other.val_)) {
         ++move_constructors_;
         ++moves_;
     }
@@ -58,7 +58,7 @@ public:
     }
 
     tracker_wrapper& operator=(tracker_wrapper&& other) {
-        val_ = other.val_;
+        val_ = std::move(other.val_);
         ++move_assignments_;
         ++moves_;
         return *this;
