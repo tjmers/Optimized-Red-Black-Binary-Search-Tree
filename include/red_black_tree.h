@@ -110,20 +110,15 @@ private:
 
     /// @brief Memory that the tree has that has already been allocated that is not in use.
     /// This is so that a memory allocation is not needed every time an element is inserted
-    /// This vector maintains two important invarients
-    /// 1: It is sorted by the memory address of the first element
-    /// 2: All memory that is being used comes before memory that is not begin used
-    /// Keeping it sorted by address means that adding a new block will be O(log(n)) rather than O(1), but deleting a node goes from O(n) to O(log(n))
+    /// This vector maintains one important invarient
+    /// 1: All memory that is being used comes before memory that is not begin used
     /// All nodes will be allocated through the helper functions for memory EXCEPT for nil, since it wouldn't work.
     std::vector<MemoryBlock> memory_;
 
-    /// @brief The index of the memory block that the next 
-    /// 
-    /// 
+    /// @brief The index of the memory block that the next to be used
     std::size_t active_block_;
 
     
-
 
 public:
 
@@ -248,15 +243,15 @@ public:
 
 private:
 
+    /// @brief Copies the data from other into `this`.
+    /// @param other Tree to copy from.
+    /// @note This function updates `this->root` and `this->nil`, and they should hold any important values or point to allocated memory before this function is called. `this->minimum` and `this->maximum` are not impacted by this function.
     void copy_from(const RedBlackTree& other) {
         // First allocate memory
         // This will be allocated in 4 blocks rather than blocks of size `kDefaultBlockSize`
         
         // Count the number of nodes in the other tree
-        std::size_t n_nodes = 0;
-        for (std::size_t i = 0; i < std::min(other.active_block_, other.memory_.size()); ++i) {
-            n_nodes += other.memory_[i].used;
-        }
+        std::size_t n_nodes = other.size_;
         std::size_t block_size = n_nodes;
         // Round block_size up to the nearest power of two
         --block_size;
@@ -281,6 +276,7 @@ private:
 
 
 	/// @brief Creates a deep copy of the tree rooted at `root`, with a new nil node too.
+    /// @note This function uses memory from memory_, and there must already be enough memory 
 	void deep_copy(const RedBlackTree& other) {
 		// Make sure that a new nil is used (could go wrong with multithreading when nil's parent is changed in deletion_fixup and when one object goes out of scope and nil_ is deallocated)
         nil_ = allocator_.allocate(1);
@@ -340,7 +336,7 @@ private:
 
 public:
 
-    // Constructor that inserts a list of elements
+    // Constructor that inserts the given elements
     template <typename... Args>
     explicit RedBlackTree(Args... args) : RedBlackTree() {
         // Use fold expression
@@ -960,8 +956,8 @@ private:
     /// @brief Marks the given node as freed and calls the node's destructor.
     /// @param node Node to go.
     void free_node(Node* node) {
-        // Swap with one from the end
-        // This maintains this function to be O(1) time
+        // Swap the node being "freed" with the last allocated node.
+        // This maintains this function to be O(1) time while reducing the memory fragmentation.
         std::size_t block_to_empty = active_block_ - (active_block_ >= memory_.size() || memory_[active_block_].used == 0);
         std::destroy_at(node);
         transfer_node(memory_[block_to_empty].location + memory_[block_to_empty].used - 1, node);
@@ -971,37 +967,15 @@ private:
 
     /// @brief Adds an unallocated memory block of `size` to `this`.
     /// @param size Number of elements to add space for. 
+    /// @throws std::bad_alloc if the size is invalid (negative or excessively large).
     void add_block(std::size_t size = kDefaultBlockSize) {
-        /*
-        // When a new block is added, the memory addresses must remain sorted by address
-        Node* new_block = allocator_.allocate(size);
-        MemoryBlock block{new_block, 0, size};
-        typename std::vector<MemoryBlock>::iterator insert_location = std::lower_bound(memory_.begin(), memory_.end(), block);
-        MemoryBlock* just_inserted = &(*memory_.insert(insert_location, block));
-        if (memory_.size() == 1) return;
-        
-        // Fix by filling the memory block until it cannot be filled
-        MemoryBlock& into = *just_inserted;
-        // Note that the raw pointers are used here to bypass MSVC's iterator out of bounds check -- the while statement handles those cases perfectly find
-        MemoryBlock* block_to_copy_from = &(memory_[0]) + (active_block_ - (memory_[active_block_].used == 0));
-        while (into.size != into.used && block_to_copy_from > just_inserted) {
-            transfer_node(block_to_copy_from->location + block_to_copy_from->used - 1, into.location + into.used);
-            ++into.used;
-            --(block_to_copy_from->used);
-            if (block_to_copy_from->used == 0) {
-                --block_to_copy_from;
-            }
-        }
-        // Update active_block_
-        active_block_ = block_to_copy_from >= &(memory_[0]) ? block_to_copy_from - &(memory_[0]) + (block_to_copy_from->used == block_to_copy_from->size) : 0;
-        */
         memory_.push_back({ allocator_.allocate(size), 0, size });
-        
     }
 
     /// @brief Transfers initialized node u into uninitialized node v.
     /// @param u Old node (From).
     /// @param v New node (To).
+    /// @note This function also propertly updates `root_`, `minimum_`, and `maximum_` if necessary.
     void transfer_node(Node* u, Node* v) {
         if (u == v) return;
         if (u->parent == nil_) {
@@ -1023,6 +997,7 @@ private:
             maximum_ = v;
         }
 
+        // Construct the new node
         new (v) Node(u->left, u->right, u->parent, std::move(u->val), u->color);
 
         if (v->left != nil_)
@@ -1033,7 +1008,8 @@ private:
 
     /// @brief Calls the destructors of all allocated nodes.
     void call_all_destructors() {
-        for (std::size_t i = 0; i < memory_.size(); ++i) {
+        std::size_t n_search = std::min(memory_.size(), active_block_);
+        for (std::size_t i = 0; i < n_search; ++i) {
             for (std::size_t j = 0; j < memory_[i].used; ++j) {
                 std::destroy_at(memory_[i].location + j);
             }
@@ -1049,6 +1025,10 @@ private:
     }
 
 public:
+
+    /// @brief Allocates memroy for `n` additional nodes into `this`.
+    /// @param n Number of elements to reserve space for.
+    /// @throws std::bad_alloc if the size is invalid (negative or excessively large).
     void reserve_additional(std::size_t n) {
         add_block(n);
     }
@@ -1123,8 +1103,9 @@ public:
 
     /// @brief Helper debug function to print information about `this`.
     void print_info() const {
-        std::cout << "Size: " << size_ << '\n';
         std::cout << "Root: " << root_->val << '\n';
+        std::cout << "Size: " << size_ << '\n';
+        std::cout << "Height: " << height(root_, nil_) << '\n';
     }
 
     // Test case helpers
@@ -1219,6 +1200,11 @@ static Node* maximum(Node* root, const Node* nil = nullptr) {
     return root;
 }
 
+/// @brief Finds the height of the tree rooted at `root`, and nil nodes `nil`.
+/// @tparam Node Type of node used in the tree. 
+/// @param root The root of the treea.
+/// @param nil Nil nodes used in the tree.
+/// @return Height of the tree.
 template <typename Node>
 static std::size_t height(const Node* root, const Node* nil = nullptr) {
     if (root == nil) return 0;
