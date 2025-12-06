@@ -1033,6 +1033,21 @@ public:
         add_block(n);
     }
 
+    /// @brief Deallocates unnecessary memory.
+    /// @returns Number of deallocated nodes.
+    /// @warning Will deallocate memory from `reserve_additional` if none of the extra memory was used.
+    std::size_t shrink_to_fit() noexcept {
+        if (active_block_ >= memory_.size() - 1) return 0ull;
+        // Deallocate all memory from active_block_ + 1 to the end of the array
+        std::size_t freed_memory = 0;
+        for (std::size_t i = active_block_ + 1; i < memory_.size(); ++i) {
+            freed_memory += memory_[i].size;
+            allocator_.deallocate(memory_[i].location, memory_[i].size);
+        }
+        memory_.erase(memory_.begin() + active_block_ + 1, memory_.end());
+        return freed_memory;
+    }
+
     // -------------------------- Debugging --------------------------
 
 #ifdef __RED_BLACK_TEST__
@@ -1054,6 +1069,8 @@ public:
         for (int i = 0; i < h; ++i) {
             total_nodes <<= 1;
         }
+
+        // Total console spaces used on the last line. Padding will be added to make every line this length
         int total_spots = total_nodes * 4 - 4;
 
         std::vector<Node*> current_level;
@@ -1061,16 +1078,23 @@ public:
         bool non_null = true;
         while (non_null) {
             int n_intervals = current_level.size();
+
+            // Number of spaces between nodes
             int interval_spacing = total_spots / n_intervals;
+
+            // Spaces between nodes
             std::string padding;
 
+            // Should only have half before
             for (int i = 0; i < interval_spacing / 2; ++i) {
                 std::cout << ' ';
             }
 
+            // Fill padding
             for (int i = 0; i < interval_spacing; ++i) {
                 padding.push_back(' ');
             }
+
             std::vector<Node*> next_level;
             non_null = false;
 
@@ -1082,10 +1106,12 @@ public:
                     std::cout << padding;
                     continue;
                 }
+                // Add color
                 if (n->color == kRed) {
                     std::cout << red;
                 }
                 std::cout << n->val;
+                // Go back to white
                 if (n->color == kRed) {
                     std::cout << normal;
                 } 
