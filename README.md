@@ -71,10 +71,9 @@ $$
 
 $$
 log(n + 1) >= bh(x)
+$$
 
-$$
 Recall that: bh(x) <= log(n - 1)
-$$
 
 $$
 height(x) / 2 <= log(n - 1)
