@@ -18,15 +18,15 @@ When instantiating a template of the red-black tree, the following paremeters ar
 
 The main operations are
 
-`template <typename U> bool insert(U)` - Inserts U into the tree.
+`template <typename U> bool insert(U)` - Inserts the given element into the tree.
 
-`bool erase(T)` - Removes U from the tree.
+`bool erase(T)` - Removes the given element from the tree.
 
 `bool contains(T)` - Determines if the given element is in the tree.
 
 Other operations that should be used include:
 
-`void reserve_additional(std::size_t)` - pre-allocates memory for additional nodes. Useful to avoid large numbers of heap allocations.
+`void reserve_additional(std::size_t)` - Pre-allocates memory for additional nodes. Useful to avoid large numbers of heap allocations.
 
 `std::size_t shrink_to_fit()` - This is the only way to release memory throughout the lifetime of the tree. Otherwise, nodes are only deleted in the destructor / when begin copied / moved into.
 
