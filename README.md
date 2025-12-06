@@ -15,8 +15,6 @@ Optimal red-black binary search tree implementation.
 
 ### It will first be established that the height of the tree $\in \Theta(log(n))$
 
-
-
  - Define black-height (bh(x)): Number of black nodes from node x (excluding x) to any nil leaf node.
 
 #### Part 1: Lower bound on subtree size
@@ -89,7 +87,7 @@ $$
 Now use $2^{bh(x) + 1} - 1 > 2^{bh(x) - 1}$
 
 $$
->= 2^{bh(x)} - 1
+    >= 2^{bh(x)} - 1
 $$
 
 **In both cases, $n(x) >= 2^{bh(x)} - 1$.
