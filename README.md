@@ -22,7 +22,7 @@ Optimal red-black binary search tree implementation
 
 Using the above properties, we get $2 * bh(x) >= height(x)$
 
-Now, I claim that $size(x) >= 2 ^(bh(x)) - 1$ for any tree subrooted at x.
+Now, I claim that $size(x) >= 2 ^{bh(x)} - 1$ for any tree subrooted at x.
 I will prove this claim by induction
 
 Base case: Empty tree
@@ -33,35 +33,35 @@ $$
 $$
 
 Inductive Step:
-Let that the left and right subtrees of x follow the property that $size(x) >= 2 ^ (bh(x)) - 1$
+Let that the left and right subtrees of x follow the property that $size(x) >= 2 ^{bh(x)} - 1$
 
 $$
 size(x) = size(x.left) + size(x.right) + 1
-size(x) <= 2 ^ (bh(x.left)) - 1 + 2 ^ (bh(x.right)) - 1 + 1
+size(x) <= 2 ^{bh(x.left)} - 1 + 2 ^{bh(x.right)} - 1 + 1
 $$
 
 The black height of a child is less than or equal to the black height of the root
 
 $$
-size(x) <= 2 ^ (bh(x)) - 1 + 2 ^ (bh(x)) - 1 + 1
-size(x) <= 2 * 2 ^ (bh(x)) - 1
+size(x) <= 2 ^{bh(x)} - 1 + 2 ^{bh(x)} - 1 + 1
+size(x) <= 2 * 2 ^{bh(x)} - 1
 $$
 
-Substitute $size >= 2 ^ (bh(x)) - 1$ from the original statement
+Substitute $size >= 2 ^{bh(x)} - 1$ from the original statement
 
 $$
-2 * 2 ^ (bh(x)) - 1 >= 2 ^ (bh(x)) + 1
+2 * 2 ^{bh(x)} - 1 >= 2 ^{bh(x)} + 1
 $$
 
-This is true since $bh(x) >= 1 => 2 ^ (bh(x)) >= 2$, therefore, $size(x) >= 2 ^ (bh(x)) - 1$ **is true**
+This is true since $bh(x) >= 1 => 2 ^{bh(x)} >= 2$, therefore, $size(x) >= 2 ^{bh(x)} - 1$ **is true**
 
 Let $size(x) = n$
 
 As shown above, $2 * bh(x) >= height(x)$
 
 $$
-n >= 2 ^ (bh(x)) - 1
-n - 1 >= 2 ^ bh(x)
+n >= 2 ^{bh(x)} - 1
+n - 1 >= 2 ^{bh(x)}
 log(n - 1) >= bh(x)
 bh(x) <= log(n - 1)
 height(x) / 2 <= log(n - 1)
