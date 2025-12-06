@@ -4,6 +4,33 @@ Optimal red-black binary search tree implementation.
 
 ## Usage
 
+The red-black tree implementation is designed to be extremely flexible to fit the needs of any project
+
+When instantiating an instance of the red-black tree, the following template paremeters are used:
+1. (required) T - the data type held by the tree.
+2. (optional) duplicates - whether the tree should be allowed to hold duplicate elements (false by default).
+3. (optional) Comparator - comparator class to compare elements in the tree.
+4. (optional) Equal - equal class to determine of two elements in the tree are equal.
+5. (optional) Node - the type of node that should be used with the tree.
+6. (optional) Allocator - the allocator to allocate memory for the tree nodes.
+
+The main operations are
+
+`template <typename U> bool insert(U)` - Inserts U into the tree.
+
+`bool erase(T)` - Removes U from the tree.
+
+`bool contains(T)` - Determines if the given element is in the tree.
+
+Other operations that should be used include:
+
+`void reserve_additional(std::size_t)` - pre-allocates memory for additional nodes. Useful to avoid large numbers of heap allocations.
+
+`std::size_t shrink_to_fit()` - This is the only way to release memory throughout the lifetime of the tree. Otherwise, nodes are only deleted in the destructor / when begin copied / moved into.
+
+The copy/move constructors/assignment operators all function as intended, and the STL-style iterator allows for easy in-order traversal.
+
+
 ## Invarients
 1. Every node is either red or black.
 2. The root is always black.
@@ -90,7 +117,7 @@ $$
     >= 2^{bh(x)} - 1
 $$
 
-**In both cases, $n(x) >= 2^{bh(x)} - 1$.
+**In both cases, $n(x) >= 2^{bh(x)} - 1$**.
 
 #### Part 2: Relate black-height to height
 
@@ -273,3 +300,7 @@ The average case, since height $\in \Theta(log(n))$, is $\in \Theta(log(n))$
 
 
 ## Optimizations
+
+The greatest optimization came from how memory was allocated throughout the tree. When the first prototype of the class was created, the MSVC performance profiler was used and it was noticed that most of the time was spent allocating memory. In order to fix this, a system was created so that memory was allocated in larger chunks, rather than one for each inserted node. By default, the tree allocates memory for 32 nodes, then once all is used another 32. Deletion, instead of deallocating memory, simply moves the nodes to the "free" part of the memory (oversimplification - see `red_black_tree.h` for actual implementation) Additionally, a feature was added so that a larger chunks of memory could be allocated by request of the user. 
+
+When the pre-allocation feature was used, it was observed that for inserting 10,000 elements, the MSVC's performance profiler (at 1000 samples / second) went from on average 9-15 profiles to 0-1 profiles - a speadup of over 5x.
