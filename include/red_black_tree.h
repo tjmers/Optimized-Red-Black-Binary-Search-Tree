@@ -961,6 +961,7 @@ private:
     /// @param node Node to go.
     void free_node(Node* node) {
         // Swap with one from the end
+        // This maintains this function to be O(1) time
         std::size_t block_to_empty = active_block_ - (active_block_ >= memory_.size() || memory_[active_block_].used == 0);
         std::destroy_at(node);
         transfer_node(memory_[block_to_empty].location + memory_[block_to_empty].used - 1, node);
@@ -971,6 +972,7 @@ private:
     /// @brief Adds an unallocated memory block of `size` to `this`.
     /// @param size Number of elements to add space for. 
     void add_block(std::size_t size = kDefaultBlockSize) {
+        /*
         // When a new block is added, the memory addresses must remain sorted by address
         Node* new_block = allocator_.allocate(size);
         MemoryBlock block{new_block, 0, size};
@@ -992,6 +994,8 @@ private:
         }
         // Update active_block_
         active_block_ = block_to_copy_from >= &(memory_[0]) ? block_to_copy_from - &(memory_[0]) + (block_to_copy_from->used == block_to_copy_from->size) : 0;
+        */
+        memory_.push_back({ allocator_.allocate(size), 0, size });
         
     }
 
