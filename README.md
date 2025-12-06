@@ -22,7 +22,7 @@ Optimal red-black binary search tree implementation
 
 Using the above properties, we get $2 * bh(x) >= height(x)$
 
-Now, I claim that $size(x) >= 2 ^ (bh(x)) - 1$ for any tree subrooted at x.
+Now, I claim that $size(x) >= 2 ^(bh(x)) - 1$ for any tree subrooted at x.
 I will prove this claim by induction
 
 Base case: Empty tree
