@@ -4,9 +4,11 @@ Optimal red-black binary search tree implementation.
 
 ## Usage
 
+To get the red-black tree into your project, simply copy the `include/red_black_tree.h` file and make sure you include it wherever necessary.
+
 The red-black tree implementation is designed to be extremely flexible to fit the needs of any project
 
-When instantiating an instance of the red-black tree, the following template paremeters are used:
+When instantiating a template of the red-black tree, the following paremeters are used:
 1. (required) T - the data type held by the tree.
 2. (optional) duplicates - whether the tree should be allowed to hold duplicate elements (false by default).
 3. (optional) Comparator - comparator class to compare elements in the tree.
