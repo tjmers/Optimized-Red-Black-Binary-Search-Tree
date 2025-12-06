@@ -10,7 +10,7 @@ Optimal red-black binary search tree implementation
 
 ## Asymptotic Time Complexities
 
-### It will first be established that the height of the tree $\in \Omega(log(n))$
+### It will first be established that the height of the tree $\in \Theta(log(n))$
 
 
 
@@ -36,7 +36,7 @@ Inductive Step:
 Let that the left and right subtrees of x follow the property that $size(x) >= 2 ^{bh(x)} - 1$
 
 $$
-size(x) = size(x.left) + size(x.right) + 1
+size(x) = size(x.left) + size(x.right) + 1 \\
 size(x) <= 2 ^{bh(x.left)} - 1 + 2 ^{bh(x.right)} - 1 + 1
 $$
 
