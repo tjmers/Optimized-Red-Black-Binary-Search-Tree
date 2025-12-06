@@ -181,7 +181,61 @@ $$
 
 ### Inserting Time Complexity:
 
+Insertion has three parts:
+1. Find where the element should be inserted
+2. Insert the element
+3. Fix any invariant violations that may occur
+
+#### Step 1:
+
+This is simply the worst case for searching, $\in \Theta(log(n))$
+
+#### Step 2:
+
+This step is simply constructing the node and updating pointers, $\in \Theta(1)$
+
+#### Step 3:
+
+This is an iterative step.
+
+In the worst case, fixups are needed going all the way up frmo the inserted node to the root.
+
+Since each fixup is individually $\in \Theta(1)$, there are at most $h$ fixups, since each fixup moves up the tree by at least one node.
+
+So insertion fixups $\in \Theta(h) = \Theta(log(n))$.
+
+Since this is the same as part 3, there is no need to explore average and worst cases.
 
 
+$$
+\therefore Insertion \in \Theta(log(n)) + \Theta(1) + \Theta(log(n)) = \Theta(log(n))
+$$
+
+#### Deletion Time Complexity:
+
+Similar to insertion, deletion has 3 steps:
+1. Find the node to delete.
+2. Delete the node (normal BST).
+3. Fix any invarient violations.
+
+#### Step 1:
+
+This is the same as searching for a node, $\in \Theta(log(n))$.
+
+#### Step 2:
+
+In the case that the node being deleted has no left and/or right child, this operation $\in \Theta(1)$, simply swapping around pointers.
+
+When the node begin deleted has two children, the minimum of the right subtree must be found (the next inorder successor).
+
+That operation, is $\in O(h) = O(log(n))$.
+
+#### Step 3:
+
+Similar to the worst case for the insertion fixup, the worst case for fixing invarient violations caused by element deletion results in a series of $\Theta(1)$ operations travelling all the way up the tree with height $h = log(n)$, making this step also $\in \Theta(log(n))$
+
+$$
+\therefore Deletion \in \Theta(log(n)) + O(log(n)) + \Theta(log(n)) = \Theta(log(n))
+$$
 
 ## Optimizations
