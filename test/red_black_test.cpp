@@ -416,6 +416,20 @@ void test_no_memory_leak_move_assignment() {
     }
 }
 
+/// @brief Tests the constructor where items are inserted in
+void test_constructor_items() {
+    RedBlackTree<int> t(1, 5, 3, 6.5);
+
+    t.check_invariants();
+
+    assert(t.contains(1));
+    assert(t.contains(5));
+    assert(t.contains(3));
+    assert(t.contains(6));
+
+
+}
+
 
 int main() {
 
@@ -443,6 +457,8 @@ int main() {
 
     test_no_memory_leak_copy_assignment();
     test_no_memory_leak_move_assignment();
+
+    test_constructor_items();
 
     std::cout << "All tests passed.\n";
 }
