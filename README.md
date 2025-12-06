@@ -319,3 +319,5 @@ Potential optimizations:
 - Get rid of the `used` member variable from `MemoryBlock` and move it to be a member variable of `RedBlackTree`. This is possible since `memory_ (std::vector<MemoryBlock>)` holds the invarient that all `MemoryBlock`s before `memory_[active_block_]` are fully used and those after are completely empty. This would likely not impact performance very much, but could save memory if many elements are added without reserving the space.
 
 - Add a function `compress`, which deallocates most of the current nodes, and re-allocates them in larger chunks, resulting in a lesser `memory_.size()`. This function should also have asynchrous support since it would be expensive compared to the other operations ($\in \Theta(n)$).
+
+- Remove my invarient that nil's parent is nil. 
