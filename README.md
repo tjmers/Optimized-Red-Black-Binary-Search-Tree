@@ -312,3 +312,5 @@ When the pre-allocation feature was used, it was observed that for inserting 10,
 
 It could be argued that the non-const iterator should be removed, since modifying the elements would very likely break the invarient of a normal BST.
 
+A potential optimization would be to change the memory management system to work off of a fixed-size stack-allocated array, rather than the heap-allocated std::vector
+Performance impact would have to be benchmarked since there really shouldn't be a lot of inserting / deleting from the std::vector anyways.
