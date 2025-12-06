@@ -4,11 +4,6 @@ Optimal red-black binary search tree implementation
 
 ## Usage
 
-## Common Operations
-1. Insertion
-2. Deletion
-3. Searching
-
 ## Invarients
 1. Every node is either red or black
 2. The root is always black
@@ -169,6 +164,24 @@ h \in \Theta(log(n))
 $$
 
 ### Searching Time Compexity: 
+
+In the worst case, the element in not present in the tree.
+
+That is, in the worst case, Searching $\in \Theta(h)$
+
+Without knowing any information about the elements that are begin searched for, it isn't possible to come up with an average case that is better than $\Theta(h)$
+
+Best case is when the element is the root, in which case Searching $\in \Theta(1)$
+
+But in the worst case and on average, since $h \in \Theta(log(n))$
+
+$$
+Searching \in \Theta(log(n))
+$$
+
+### Inserting Time Complexity:
+
+
 
 
 ## Optimizations
