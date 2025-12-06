@@ -1,23 +1,3 @@
-/**
- * Test cases for the Red Black Binary Search Tree
- * All test cases pass when compiled with g++ and MSVC, with the C++ version set to at least 20 (for concepts) on Windows 11
- * All profiling was done with MSVC performance profiler.
- * In terms of performance, the function that takes the most amount of time by far is the check_invariants function
- * This makes sense since it must traverse the entire tree is is invoked frequently.
- * Inside the insert function, the majority (93% of runtime) of the bottleneck for time comes from the memory allocation
- * Similarly for erasing, 97% of the runtime is spent in the allocator::deallocate function.
- * Since this program doesn't use a lot of memory, it is likely that no kernel functions are needed for extra memory
- * In that case, the bottleneck would be from the C++ STL memory allocations
- * Size of a red black node = 8 (left) + 8 (right) + 8 (parent) + 4 (int) + 1 (color) = 29 -> probably padded to 32 bytes on 64-bit systems
- * When 10,000 elements are inserted, 10,000 * 32 bytes = 312.5 kilo bytes allocated -> a significant amount
- * In order to make it more efficient, a system where memory is request in bigger chunks would be better
- * I tried to implement it but it really just turns into reinventing the heap and there would be a lot more overhead since nodes would have to be separeated based on how they're allocated
- * 
- */
-
-
-
-
 #define __RED_BLACK_TEST__
 
 #include "red_black_tree.h"
@@ -31,6 +11,8 @@
 
 // Unit tests
 
+
+/// @brief Test the case where there are 3 insertions - no fixups needed
 void test_basic_insertion() {
     RedBlackTree<int> t;
 
@@ -45,6 +27,8 @@ void test_basic_insertion() {
     t.check_invariants();
 }
 
+
+/// @brief Attempts to insert duplicate for both duplicates = true and duplicates = false.
 void test_duplicate_insertion() {
     RedBlackTree<int> t;
 
@@ -62,43 +46,44 @@ void test_duplicate_insertion() {
 }
 
 
+/// @brief Tests an insertion where a fixup with a rotation is needed
 void test_rotations() {
     RedBlackTree<int> t;
 
     // RR case (single left rotation)
     t.insert(1);
-    t.insert(2);
-    t.insert(3);
+    t.insert(2); // Inserted on 1's right
+    t.insert(3); // Inserted on 3's right (initialy)
 
     t.check_invariants();
 
     // LL case (single right rotation)
     t.clear();
     t.insert(3);
-    t.insert(2);
-    t.insert(1);
+    t.insert(2); // Left of 2
+    t.insert(1); // Left of 1
 
     t.check_invariants();
 
     
     // LR case (left-right double rotation)
     t.clear();
-    t.insert(3);
-    t.insert(1);
-    t.insert(2);
+    t.insert(3); 
+    t.insert(1); // Left of three
+    t.insert(2); // Right of 1
     
     t.check_invariants();
     
     // RL case (right-left double rotation)
     t.clear();
     t.insert(1);
-    t.insert(3);
-    t.insert(2);
+    t.insert(3); // Right of 1
+    t.insert(2); // Left of 3
     
     t.check_invariants();
 }
 
-
+/// @brief Tests a case where many elements are inserted at once.
 void test_many_insertion() {
     RedBlackTree<int> t;
 
@@ -110,6 +95,8 @@ void test_many_insertion() {
 
 }
 
+
+/// @brief Tests a case where many random elements are inserted at once.
 void test_random_insert() {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -131,7 +118,7 @@ void test_random_insert() {
 }
 
 
-// Make sure that there are no unnecessary copies or moves
+/// @brief Verifies that, when inserting elements, no unncessary constructs, copies, or moves are done
 void test_copy_move_insert() {
     tracker_wrapper<int>::init();
     RedBlackTree<tracker_wrapper<int>> t;
@@ -151,28 +138,30 @@ void test_copy_move_insert() {
 
 }
 
+
+/// @brief Tests that a leaf node (has 2 nil children) is deleted.
 void test_delete_leaf() {
     RedBlackTree<int> t;
 
     t.insert(10);
-    t.insert(5);
-    t.insert(15);
+    t.insert(5); // Left of 10
+    t.insert(15); // Right of 10
 
-    t.erase(5);
+    t.erase(5); // Left child
 
     assert(!t.contains(5));
     t.check_invariants();
 }
 
-
+/// @brief Test case for when a node with one child is deleted.
 void test_delete_one_child() {
     RedBlackTree<int> t;
 
-    t.insert(10);
-    t.insert(11);
-    t.insert(8);
+    t.insert(10); 
+    t.insert(11); // Right of 10
+    t.insert(8); // Left of 10
     t.check_invariants();
-    t.insert(7);
+    t.insert(7); // Left of 8
     t.check_invariants();
 
     // Node with value 8 now has one left child (7)
@@ -188,10 +177,16 @@ void test_delete_two_children() {
     RedBlackTree<int> t;
 
     t.insert(10);
-    t.insert(5);
-    t.insert(15);
-    t.insert(13);
-    t.insert(17);
+    t.insert(5); // Left of 10
+    t.insert(15); // Right of 10
+    t.insert(13); // Left of 15
+    t.insert(17); // Right of 15
+
+    //         10
+    //        /  \-
+    //       5    15
+    //            / \-
+    //           13  17
 
     t.erase(10);  // root with two children
 
@@ -199,6 +194,8 @@ void test_delete_two_children() {
     t.check_invariants();
 }
 
+
+/// @brief Test case for adding a bunch of numbers then deleting them.
 void ultimate_test() {
     {
         // Add a bunch of random elements and remove them randomly
@@ -258,6 +255,8 @@ void ultimate_test() {
 
 }
 
+
+/// @brief Test case for the copy constructor of the tree (and its efficiency).
 void test_tree_copy() {
     tracker_wrapper<int>::init();
     RedBlackTree<tracker_wrapper<int>> t;
@@ -277,6 +276,8 @@ void test_tree_copy() {
     assert(tracker_wrapper<int>::copies() == 4);
 }
 
+
+/// @brief Test case for the move constructor of the tree (and its efficiency).
 void test_tree_move() {
     tracker_wrapper<int>::init();
     RedBlackTree<tracker_wrapper<int>> t;
@@ -297,6 +298,8 @@ void test_tree_move() {
     t.check_invariants();
 }
 
+
+/// @brief Test case for the inorder iteration of the tree.
 void test_iterator() {
     // Add elements from 0 to 100
     RedBlackTree<int> t;
@@ -324,6 +327,7 @@ void test_iterator() {
     }
 }
 
+/// @brief Test case for the constant inorder iteration of the tree.
 void test_const_iterator() {
     // Add elements from 0 to 100
     RedBlackTree<int> t;
@@ -351,8 +355,71 @@ void test_const_iterator() {
     }
 }
 
+/// @brief Test that no memory leak occurs on repeated copy assignment.
+void test_no_memory_leak_copy_assignment() {
+
+    // Add a bunch of random elements and remove them randomly
+    // Keep track of what should be in there using STL
+
+    // Allow duplicates for the first test
+    RedBlackTree<int, true> t;
+
+    std::random_device rd;
+
+    std::mt19937 gen(rd());
+
+    std::uniform_int_distribution<> dist(INT_MIN, INT_MAX);
+
+    // Small tree since copying is inheritly an expensive operation
+    constexpr int N_INSERT = 50;
+
+
+    for (int i = 0; i < N_INSERT; ++i) {
+        int num = dist(gen);
+        assert(t.insert(num));
+        t.check_invariants(); 
+    }
+
+    for (int i = 0; i < 10000; ++i) {
+        RedBlackTree<int, true> t2 = t;
+    }
+}
+
+/// @brief Test that no memory leak occurs on repeated move assignment.
+void test_no_memory_leak_move_assignment() {
+
+    // Add a bunch of random elements and remove them randomly
+    // Keep track of what should be in there using STL
+
+    // Allow duplicates for the first test
+    RedBlackTree<int, true> t;
+
+    std::random_device rd;
+
+    std::mt19937 gen(rd());
+
+    std::uniform_int_distribution<> dist(INT_MIN, INT_MAX);
+
+    // Small tree since copying is inheritly an expensive operation
+    constexpr int N_INSERT = 10000;
+
+
+    for (int i = 0; i < N_INSERT; ++i) {
+        int num = dist(gen);
+        assert(t.insert(num));
+        t.check_invariants(); 
+    }
+
+    for (int i = 0; i < 10000; ++i) {
+        RedBlackTree<int, true> t2 = std::move(t);
+        t = std::move(t2);
+    }
+}
+
 
 int main() {
+
+    // Call all test cases
     test_basic_insertion();
     test_duplicate_insertion();
     test_rotations();
@@ -373,6 +440,9 @@ int main() {
 
     test_iterator();
     test_const_iterator();
+
+    test_no_memory_leak_copy_assignment();
+    test_no_memory_leak_move_assignment();
 
     std::cout << "All tests passed.\n";
 }

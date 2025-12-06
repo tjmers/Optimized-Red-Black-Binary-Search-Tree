@@ -106,7 +106,6 @@ private:
     };
 
     static constexpr std::size_t kDefaultBlockSize = 32;
-    static constexpr std::size_t kMaximumEmptyBlocks = 4;
 
     /// @brief Memory that the tree has that has already been allocated that is not in use.
     /// This is so that a memory allocation is not needed every time an element is inserted
@@ -1106,12 +1105,12 @@ public:
                     std::cout << padding;
                     continue;
                 }
-                // Add color
+                // Make red if red
                 if (n->color == kRed) {
                     std::cout << red;
                 }
                 std::cout << n->val;
-                // Go back to white
+                // Go back to white if red
                 if (n->color == kRed) {
                     std::cout << normal;
                 } 

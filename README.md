@@ -304,3 +304,9 @@ The average case, since height $\in \Theta(log(n))$, is $\in \Theta(log(n))$
 The greatest optimization came from how memory was allocated throughout the tree. When the first prototype of the class was created, the MSVC performance profiler was used and it was noticed that most of the time was spent allocating memory. In order to fix this, a system was created so that memory was allocated in larger chunks, rather than one for each inserted node. By default, the tree allocates memory for 32 nodes, then once all is used another 32. Deletion, instead of deallocating memory, simply moves the nodes to the "free" part of the memory (oversimplification - see `red_black_tree.h` for actual implementation) Additionally, a feature was added so that a larger chunks of memory could be allocated by request of the user. 
 
 When the pre-allocation feature was used, it was observed that for inserting 10,000 elements, the MSVC's performance profiler (at 1000 samples / second) went from on average 9-15 profiles to 0-1 profiles - a speadup of over 5x.
+
+
+## Additional notes:
+
+It could be argued that the non-const iterator should be removed, since modifying the elements would very likely break the invarient of a normal BST.
+
