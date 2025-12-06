@@ -182,9 +182,9 @@ $$
 ### Inserting Time Complexity:
 
 Insertion has three parts:
-1. Find where the element should be inserted
-2. Insert the element
-3. Fix any invariant violations that may occur
+1. Find where the element should be inserted.
+2. Insert the element.
+3. Fix any invariant violations that may occur.
 
 #### Step 1:
 
@@ -237,5 +237,41 @@ Similar to the worst case for the insertion fixup, the worst case for fixing inv
 $$
 \therefore Deletion \in \Theta(log(n)) + O(log(n)) + \Theta(log(n)) = \Theta(log(n))
 $$
+
+### Comparison to other types of binary search trees
+
+#### AVL Trees:
+
+Due to the invarient that all balances factors <= 1, the AVL tree also has $height \in \Theta(log(n))$. This makes many operations in the AVL tree the same asymptotically as the red-black BST.
+
+Searching: Since $h \in \Theta(log(n))$, this operation is $\in \Theta(log(n))$, since in the worst case when the element is not present all nodes must be traversed.
+
+Insertion: AVL Trees have the same worst case insertion of $\Theta(log(n))$ as red-black trees, due to the limitation of traversing at $\Theta(log(n))$.
+
+Deletion: AVL Trees have the same worst case deletion as the red-black trees, which is $\Theta(log(n))$, again dictated by the height of the tree.
+
+#### Non-self-balancing binary search trees
+
+This category of trees most importantly do not have any invariants that limit the height, leading the height to have a worst case of $\Theta(n)$, when the tree is in a linked-list fasion. When the data inserted is randomly generated, the average height is $\in \Theta(log(n))$, which is the same as the AVL and red-black trees. The complete breakdown is shown below:
+
+Searching:
+
+With a worst case height of $h \in \Theta(n)$, the worst case for searching $\in \Theta(n)$.
+
+The average case height of $\Theta(log(n))$ keeps the average case for searching $\in \Theta(log(n))$.
+
+Insertion:
+
+The worst case still needs to traverse the tree to find where to insert the new element. Because of this, insertion has a worst case $\in \Theta(n)$.
+
+In the average case, the tree is somewhat balanced, and the height $\in \Theta(log(n))$ makes the average case for insertion $\in \Theta(log(n))$
+
+Deletion:
+
+The worst case for deletion needs first find the node, which again has a worst case $\in \Theta(n)$ for when the tree is in a linked-list style
+
+The average case, since height $\in \Theta(log(n))$, is $\in \Theta(log(n))$
+
+
 
 ## Optimizations
