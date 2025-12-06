@@ -66,8 +66,8 @@ $$
 
 Let:
 - $n(x)$ be the number of internal nodes in the subtree rooted at x.
-- $n(L) = size of the left subtree.
-- $n(R) = size of the right subtree.
+- $n(L)$ = size of the left subtree.
+- $n(R)$ = size of the right subtree.
 
 By definition of size, $n(x) = n(L) + n(R) + 1$
 
