@@ -36,7 +36,10 @@ Inductive Step:
 Let that the left and right subtrees of x follow the property that $size(x) >= 2 ^{bh(x)} - 1$
 
 $$
-size(x) = size(x.left) + size(x.right) + 1 \\
+size(x) = size(x.left) + size(x.right) + 1
+$$
+
+$$
 size(x) <= 2 ^{bh(x.left)} - 1 + 2 ^{bh(x.right)} - 1 + 1
 $$
 
@@ -44,6 +47,9 @@ The black height of a child is less than or equal to the black height of the roo
 
 $$
 size(x) <= 2 ^{bh(x)} - 1 + 2 ^{bh(x)} - 1 + 1
+$$
+
+$$
 size(x) <= 2 * 2 ^{bh(x)} - 1
 $$
 
@@ -60,12 +66,22 @@ Let $size(x) = n$
 As shown above, $2 * bh(x) >= height(x)$
 
 $$
-n >= 2 ^{bh(x)} - 1
-n - 1 >= 2 ^{bh(x)}
-log(n - 1) >= bh(x)
-bh(x) <= log(n - 1)
+n >= 2 ^{bh(x)} - 1, n + 1 >= 2 ^{bh(x)}
+$$
+
+$$
+log(n + 1) >= bh(x)
+
+$$
+Recall that: bh(x) <= log(n - 1)
+$$
+
+$$
 height(x) / 2 <= log(n - 1)
-height(x) \in O(log(n))
+$$
+
+$$
+\therefore height(x) \in O(log(n))
 $$
 
 
