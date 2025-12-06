@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Jacob Myers
+// Licensed under the MIT License. See LICENSE file in the project root for full license text.
+
 #pragma once
 
 // / @brief Verifys that unnecessary copy/moves are avoided when inserting. Note that the counters are shared between all template instantiation.
